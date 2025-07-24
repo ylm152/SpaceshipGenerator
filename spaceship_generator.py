@@ -27,8 +27,8 @@ def resource_path(*path_components):
 
 # Deletes all existing spaceships and unused materials from the scene
 def reset_scene():
-    for item in bpy.data.objects:
-        item.select = item.name.startswith('Spaceship')
+    for obj in bpy.context.scene.objects:
+        obj.select_set(obj.name.startswith('Spaceship'))
     bpy.ops.object.delete()
     for material in bpy.data.materials:
         if not material.users:
@@ -146,13 +146,13 @@ def add_exhaust_to_face(bm, face):
     for face in result['geom']:
         if isinstance(face, bmesh.types.BMFace):
             if is_rear_face(face):
-                face.material_index = Material.hull_dark
+                face.material_index = int(Material.hull_dark)
                 face = extrude_face(bm, face, exhaust_length)
                 scale_face(bm, face, scale_outer, scale_outer, scale_outer)
                 extruded_face_list = []
                 face = extrude_face(bm, face, -exhaust_length * 0.9, extruded_face_list)
                 for extruded_face in extruded_face_list:
-                    extruded_face.material_index = Material.exhaust_burn
+                    extruded_face.material_index = int(Material.exhaust_burn)
                 scale_face(bm, face, scale_inner, scale_inner, scale_inner)
 
 # Given a face, splits it up into a smaller uniform grid and extrudes each grid cell.
@@ -169,7 +169,7 @@ def add_grid_to_face(bm, face):
     scale = 0.8
     for face in result['geom']:
         if isinstance(face, bmesh.types.BMFace):
-            material_index = Material.hull_lights if random() > 0.5 else Material.hull
+            material_index = int(Material.hull_lights) if random() > 0.5 else int(Material.hull)
             extruded_face_list = []
             face = extrude_face(bm, face, grid_length, extruded_face_list)
             for extruded_face in extruded_face_list:
@@ -201,8 +201,8 @@ def add_cylinders_to_face(bm, face):
                                   cap_ends=True,
                                   cap_tris=False,
                                   segments=num_segments,
-                                  diameter1=cylinder_size,
-                                  diameter2=cylinder_size,
+                                  radius1=cylinder_size/2,
+                                  radius2=cylinder_size/2,
                                   depth=cylinder_depth,
                                   matrix=cylinder_matrix)
 
@@ -233,8 +233,8 @@ def add_weapons_to_face(bm, face):
                                   cap_ends=True,
                                   cap_tris=False,
                                   segments=num_segments,
-                                  diameter1=weapon_size * 0.9,
-                                  diameter2=weapon_size,
+                                  radius1=(weapon_size * 0.9)/2,
+                                  radius2=(weapon_size)/2,
                                   depth=weapon_depth,
                                   matrix=face_matrix)
 
@@ -246,8 +246,8 @@ def add_weapons_to_face(bm, face):
                                   cap_ends=True,
                                   cap_tris=False,
                                   segments=num_segments,
-                                  diameter1=weapon_size * 0.6,
-                                  diameter2=weapon_size * 0.5,
+                                  radius1=(weapon_size * 0.6)/2,
+                                  radius2=(weapon_size * 0.5)/2,
                                   depth=weapon_depth * 2,
                                   matrix=left_guard_mat)
 
@@ -259,8 +259,8 @@ def add_weapons_to_face(bm, face):
                                   cap_ends=True,
                                   cap_tris=False,
                                   segments=num_segments,
-                                  diameter1=weapon_size * 0.5,
-                                  diameter2=weapon_size * 0.6,
+                                  radius1=(weapon_size * 0.5)/2,
+                                  radius2=(weapon_size * 0.6)/2,
                                   depth=weapon_depth * 2,
                                   matrix=right_guard_mat)
 
@@ -273,8 +273,8 @@ def add_weapons_to_face(bm, face):
                                   cap_ends=True,
                                   cap_tris=False,
                                   segments=8,
-                                  diameter1=weapon_size * 0.4,
-                                  diameter2=weapon_size * 0.4,
+                                  radius1=(weapon_size * 0.4)/2,
+                                  radius2=(weapon_size * 0.4)/2,
                                   depth=weapon_depth * 5,
                                   matrix=turret_house_mat)
 
@@ -283,8 +283,8 @@ def add_weapons_to_face(bm, face):
                                   cap_ends=True,
                                   cap_tris=False,
                                   segments=8,
-                                  diameter1=weapon_size * 0.1,
-                                  diameter2=weapon_size * 0.1,
+                                  radius1=(weapon_size * 0.1)/2,
+                                  radius2=(weapon_size * 0.1)/2,
                                   depth=weapon_depth * 6,
                                   matrix=turret_house_mat @ \
                                          Matrix.Translation(Vector((weapon_size * 0.2, 0, -weapon_size))).to_4x4())
@@ -292,8 +292,8 @@ def add_weapons_to_face(bm, face):
                                   cap_ends=True,
                                   cap_tris=False,
                                   segments=8,
-                                  diameter1=weapon_size * 0.1,
-                                  diameter2=weapon_size * 0.1,
+                                  radius1=(weapon_size * 0.1)/2,
+                                  radius2=(weapon_size * 0.1)/2,
                                   depth=weapon_depth * 6,
                                   matrix=turret_house_mat @ \
                                          Matrix.Translation(Vector((weapon_size * -0.2, 0, -weapon_size))).to_4x4())
@@ -309,11 +309,11 @@ def add_sphere_to_face(bm, face):
                                     uniform(0, sphere_size * 0.5))
     result = bmesh.ops.create_icosphere(bm,
                                         subdivisions=3,
-                                        diameter=sphere_size,
+                                        radius=sphere_size / 2,
                                         matrix=sphere_matrix)
     for vert in result['verts']:
         for face in vert.link_faces:
-            face.material_index = Material.hull
+            face.material_index = int(Material.hull)
 
 # Given a face, adds some pointy intimidating antennas.
 def add_surface_antenna_to_face(bm, face):
@@ -334,16 +334,16 @@ def add_surface_antenna_to_face(bm, face):
                 depth_short = depth * uniform(0.02, 0.15)
                 base_diameter = uniform(0.005, 0.05)
 
-                material_index = Material.hull if random() > 0.5 else Material.hull_dark
+                material_index = int(Material.hull) if random() > 0.5 else int(Material.hull_dark)
 
                 # Spire
-                num_segments = uniform(3, 6)
+                num_segments = randint(3, 6)
                 result = bmesh.ops.create_cone(bm,
                                                cap_ends=False,
                                                cap_tris=False,
                                                segments=num_segments,
-                                               diameter1=0,
-                                               diameter2=base_diameter,
+                                               radius1=0,
+                                               radius2=base_diameter/2,
                                                depth=depth,
                                                matrix=get_face_matrix(face, pos + face.normal * depth * 0.5))
                 for vert in result['verts']:
@@ -355,8 +355,8 @@ def add_surface_antenna_to_face(bm, face):
                                                cap_ends=True,
                                                cap_tris=False,
                                                segments=num_segments,
-                                               diameter1=base_diameter * uniform(1, 1.5),
-                                               diameter2=base_diameter * uniform(1.5, 2),
+                                               radius1=(base_diameter * uniform(1, 1.5))/2,
+                                               radius2=(base_diameter * uniform(1.5, 2))/2,
                                                depth=depth_short,
                                                matrix=get_face_matrix(face, pos + face.normal * depth_short * 0.45))
                 for vert in result['verts']:
@@ -373,21 +373,21 @@ def add_disc_to_face(bm, face):
                           cap_ends=True,
                           cap_tris=False,
                           segments=32,
-                          diameter1=depth * 3,
-                          diameter2=depth * 4,
+                          radius1=(depth * 3)/2,
+                          radius2=(depth * 4)/2,
                           depth=depth,
                           matrix=get_face_matrix(face, face.calc_center_bounds() + face.normal * depth * 0.5))
     result = bmesh.ops.create_cone(bm,
                                    cap_ends=False,
                                    cap_tris=False,
                                    segments=32,
-                                   diameter1=depth * 1.25,
-                                   diameter2=depth * 2.25,
+                                   radius1=(depth * 1.25)/2,
+                                   radius2=(depth * 2.25)/2,
                                    depth=0.0,
                                    matrix=get_face_matrix(face, face.calc_center_bounds() + face.normal * depth * 1.05))
     for vert in result['verts']:
         for face in vert.link_faces:
-            face.material_index = Material.glow_disc
+            face.material_index = int(Material.glow_disc)
 
 class Material(IntEnum):
     hull = 0            # Plain spaceship hull
@@ -400,9 +400,10 @@ class Material(IntEnum):
 # Returns shader node
 def getShaderNode(mat):
     ntree = mat.node_tree
-    node_out = ntree.get_output_node('EEVEE')
-    shader_node = node_out.inputs['Surface'].links[0].from_node
-    return shader_node
+    for node in ntree.nodes:
+        if node.type == 'BSDF_PRINCIPLED':
+            return node
+    raise RuntimeError("No Principled BSDF node found")
 
 def getShaderInput(mat, name):
     shaderNode = getShaderNode(mat)
@@ -416,7 +417,7 @@ def add_hull_normal_map(mat, hull_normal_map):
 
     teximage_node = ntree.nodes.new('ShaderNodeTexImage')
     teximage_node.image = hull_normal_map
-    teximage_node.image.colorspace_settings.name = 'Raw'
+    teximage_node.image.colorspace_settings.name = 'Non-Color'
     teximage_node.projection ='BOX'
     tex_coords_node = ntree.nodes.new('ShaderNodeTexCoord')
     links.new(tex_coords_node.outputs['Object'], teximage_node.inputs['Vector'])
@@ -430,7 +431,6 @@ def add_hull_normal_map(mat, hull_normal_map):
 # Sets some basic properties for a hull material.
 def set_hull_mat_basics(mat, color, hull_normal_map):
     shader_node = getShaderNode(mat)
-    shader_node.inputs["Specular"].default_value = 0.1
     shader_node.inputs["Base Color"].default_value = color
 
     return add_hull_normal_map(mat, hull_normal_map)
@@ -486,7 +486,7 @@ def create_materials():
     teximage_emit_node.image = hull_lights_emessive_map
     teximage_emit_node.projection ='BOX'
     links.new(tex_coords_node.outputs['Object'], teximage_emit_node.inputs['Vector'])
-    links.new(teximage_emit_node.outputs[0], shader_node.inputs["Emission"])
+    links.new(teximage_emit_node.outputs[0], shader_node.inputs["Emission Color"])
 
 
 
@@ -501,12 +501,12 @@ def create_materials():
     # # Build the exhaust_burn texture
     mat = ret[Material.exhaust_burn]
     shader_node = getShaderNode(mat)
-    shader_node.inputs["Emission"].default_value = glow_color
+    shader_node.inputs["Emission Color"].default_value = glow_color
 
     # # Build the glow_disc texture
     mat = ret[Material.glow_disc]
     shader_node = getShaderNode(mat)
-    shader_node.inputs["Emission"].default_value = glow_color
+    shader_node.inputs["Emission Color"].default_value = glow_color
 
     return ret
 
@@ -585,7 +585,7 @@ def generate_spaceship(random_seed='',
                     face = ribbed_extrude_face(
                         bm, face, hull_segment_length, randint(2, 4), rib_scale)
 
-    # Add some large asymmetrical sections of the hull that stick out
+    # Add some large asynmmetrical sections of the hull that stick out
     if create_asymmetry_segments:
         for face in bm.faces[:]:
             # Skip any long thin faces as it'll probably look stupid
@@ -625,15 +625,15 @@ def generate_spaceship(random_seed='',
                 elif val > 0.25:
                     grid_faces.append(face)
                 else:
-                    face.material_index = Material.hull_lights
+                    face.material_index = int(Material.hull_lights)
             elif face.normal.x > 0.9:  # front face
                 if face.normal.dot(face.calc_center_bounds()) > 0 and val > 0.7:
                     antenna_faces.append(face)  # front facing antenna
-                    face.material_index = Material.hull_lights
+                    face.material_index = int(Material.hull_lights)
                 elif val > 0.4:
                     grid_faces.append(face)
                 else:
-                    face.material_index = Material.hull_lights
+                    face.material_index = int(Material.hull_lights)
             elif face.normal.z > 0.9:  # top face
                 if face.normal.dot(face.calc_center_bounds()) > 0 and val > 0.7:
                     antenna_faces.append(face)  # top facing antenna
@@ -656,7 +656,7 @@ def generate_spaceship(random_seed='',
                 elif val > 0.4:
                     sphere_faces.append(face)
                 else:
-                    face.material_index = Material.hull_lights
+                    face.material_index = int(Material.hull_lights)
 
         # Now we've categorized, let's actually add the detail
         for face in engine_faces:
@@ -706,6 +706,7 @@ def generate_spaceship(random_seed='',
     # obj.select = True
 
     # Recenter the object to its center of mass
+    bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_MASS')
     ob = bpy.context.object
     ob.location = (0, 0, 0)
